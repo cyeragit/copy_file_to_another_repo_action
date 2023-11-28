@@ -52,16 +52,32 @@ if [ -z "$INPUT_COMMIT_MESSAGE" ]; then
   INPUT_COMMIT_MESSAGE="Update from https://$INPUT_GIT_SERVER/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
 fi
 
+push_changes() {
+  echo "Pulling"
+  # Not wrapping in quotes to allow for multiple flags
+  # shellcheck disable=SC2086
+  git pull origin "$OUTPUT_BRANCH" $INPUT_PULL_FLAGS || return 1
+  echo "Pushing git commit"
+  git push -u origin HEAD:"$OUTPUT_BRANCH" || return 1
+}
+
 echo "Adding git commit"
 git add .
 if git status | grep -q "Changes to be committed"; then
   git commit --message "$INPUT_COMMIT_MESSAGE"
-  echo "Pulling"
-  # Not wrapping in quotes to allow for multiple flags
-  # shellcheck disable=SC2086
-  git pull origin "$OUTPUT_BRANCH" $INPUT_PULL_FLAGS
-  echo "Pushing git commit"
-  git push -u origin HEAD:"$OUTPUT_BRANCH"
+  echo Retries: "$INPUT_RETRY_COUNT"
+  sleep_duration_s=5
+  retries=0
+  until [ $retries -ge "$INPUT_RETRY_COUNT" ]; do
+    push_changes && break
+    retries=$((retries + 1))
+    if [ $retries -ge "$INPUT_RETRY_COUNT" ]; then
+      echo "Exceeded max retries"
+      exit 1
+    fi
+    echo "Retrying in $sleep_duration_s seconds..."
+    sleep "$sleep_duration_s"
+  done
 else
   echo "No changes detected"
 fi
