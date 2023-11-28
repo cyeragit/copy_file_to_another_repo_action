@@ -35,6 +35,14 @@ inputs:
     description: 'Git server host, default github.com'
     required: false
     default: github.com
+  pull_flags:
+    description: 'Flags to pass to git pull'
+    required: false
+    default: --rebase
+  retry_count:
+    description: 'Number of times to retry pull+push'
+    required: false
+    default: "3"
 runs:
   using: 'docker'
   image: 'Dockerfile'
